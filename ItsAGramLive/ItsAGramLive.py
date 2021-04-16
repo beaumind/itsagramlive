@@ -12,6 +12,7 @@ import requests
 # Turn off InsecureRequestWarning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from PIL import Image
+import requests
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -39,6 +40,8 @@ class ItsAGramLive:
     stream_server: str = None
     pinned_comment_id: str = None
     basic_headers: dict = {}
+    profile_pic = ''
+    skip_login = False
 
     DEVICE_SETS = {
         "app_version": "136.0.0.34.124",
@@ -62,21 +65,13 @@ class ItsAGramLive:
 
     def __init__(self, username='', password=''):
 
-        if bool(username) is False and bool(password) is False:
-            parser = argparse.ArgumentParser(add_help=True)
-            parser.add_argument("-u", "--username", type=str, help="username", required=True)
-            parser.add_argument("-p", "--password", type=str, help="password", required=True)
-            parser.add_argument("-proxy", type=str, help="Proxy format - user:password@ip:port", default=None)
-            args = parser.parse_args()
+        if bool(username) is True and bool(password) is True:
+            m = hashlib.md5()
+            m.update(username.encode('utf-8') + password.encode('utf-8'))
+            self.device_id = self.generate_device_id(m.hexdigest())
 
-            username = args.username
-            password = args.password
+            self.set_user(username=username, password=password)
 
-        m = hashlib.md5()
-        m.update(username.encode('utf-8') + password.encode('utf-8'))
-        self.device_id = self.generate_device_id(m.hexdigest())
-
-        self.set_user(username=username, password=password)
 
         self.basic_headers = {
             'Connection': 'close',
@@ -88,10 +83,14 @@ class ItsAGramLive:
             'User-Agent': self.USER_AGENT,
         }
 
+    def get_profile_pic_url(self, username):
+        return ''
+
     def set_user(self, username, password):
         self.username = username
         self.password = password
         self.uuid = self.generate_UUID(True)
+        self.profile_pic = self.get_profile_pic_url(username)
 
     def generate_UUID(self, t: bool = True):
         generated_uuid = str(uuid.uuid4())
@@ -182,7 +181,7 @@ class ItsAGramLive:
     def send_request(self, endpoint, post=None, login=False, headers: dict = {}):
         verify = False  # don't show request warning
 
-        if not self.isLoggedIn and not login:
+        if not self.isLoggedIn and not login and not self.skip_login:
             raise Exception("Not logged in!\n")
 
         h = self.basic_headers
@@ -268,75 +267,75 @@ class ItsAGramLive:
                 if self.start_broadcast():
                     self.is_running = True
 
-                    while self.is_running:
-                        cmd = input('command> ')
-
-                        if cmd == "stop":
-                            self.stop()
-
-                        elif cmd == "mute comments":
-                            self.mute_comments()
-
-                        elif cmd == "unmute comments":
-                            self.unmute_comment()
-
-                        elif cmd == 'info':
-                            self.live_info()
-
-                        elif cmd == 'viewers':
-                            users, ids = self.get_viewer_list()
-                            print(users)
-
-                        elif cmd == 'comments':
-                            self.get_comments()
-
-                        elif cmd[:3] == 'pin':
-                            to_send = cmd[4:]
-                            if to_send:
-                                self.pin_comment(to_send)
-                            else:
-                                print('usage: chat <text to chat>')
-
-                        elif cmd[:5] == 'unpin':
-                            self.unpin_comment()
-
-                        elif cmd[:4] == 'chat':
-                            to_send = cmd[5:]
-                            if to_send:
-                                self.send_comment(to_send)
-                            else:
-                                print('usage: chat <text to chat>')
-
-                        elif cmd == 'wave':
-                            users, ids = self.get_viewer_list()
-                            for i in range(len(users)):
-                                print(f'{i + 1}. {users[i]}')
-                            print('Type number according to user e.g 1.')
-                            while True:
-                                cmd = input('number> ')
-
-                                if cmd == 'back':
-                                    break
-                                try:
-                                    user_id = int(cmd) - 1
-                                    self.wave(ids[user_id])
-                                    break
-                                except:
-                                    print('Please type number e.g 1')
-
-                        else:
-                            print(
-                                'Available commands:\n\t '
-                                '"stop"\n\t '
-                                '"mute comments"\n\t '
-                                '"unmute comments"\n\t '
-                                '"info"\n\t '
-                                '"viewers"\n\t '
-                                '"comments"\n\t '
-                                '"chat"\n\t '
-                                '"pin"\n\t '
-                                '"unpin"\n\t '
-                                '"wave"\n\t')
+                    # while self.is_running:
+                    #     cmd = input('command> ')
+                    #
+                    #     if cmd == "stop":
+                    #         self.stop()
+                    #
+                    #     elif cmd == "mute comments":
+                    #         self.mute_comments()
+                    #
+                    #     elif cmd == "unmute comments":
+                    #         self.unmute_comment()
+                    #
+                    #     elif cmd == 'info':
+                    #         self.live_info()
+                    #
+                    #     elif cmd == 'viewers':
+                    #         users, ids = self.get_viewer_list()
+                    #         print(users)
+                    #
+                    #     elif cmd == 'comments':
+                    #         self.get_comments()
+                    #
+                    #     elif cmd[:3] == 'pin':
+                    #         to_send = cmd[4:]
+                    #         if to_send:
+                    #             self.pin_comment(to_send)
+                    #         else:
+                    #             print('usage: chat <text to chat>')
+                    #
+                    #     elif cmd[:5] == 'unpin':
+                    #         self.unpin_comment()
+                    #
+                    #     elif cmd[:4] == 'chat':
+                    #         to_send = cmd[5:]
+                    #         if to_send:
+                    #             self.send_comment(to_send)
+                    #         else:
+                    #             print('usage: chat <text to chat>')
+                    #
+                    #     elif cmd == 'wave':
+                    #         users, ids = self.get_viewer_list()
+                    #         for i in range(len(users)):
+                    #             print(f'{i + 1}. {users[i]}')
+                    #         print('Type number according to user e.g 1.')
+                    #         while True:
+                    #             cmd = input('number> ')
+                    #
+                    #             if cmd == 'back':
+                    #                 break
+                    #             try:
+                    #                 user_id = int(cmd) - 1
+                    #                 self.wave(ids[user_id])
+                    #                 break
+                    #             except:
+                    #                 print('Please type number e.g 1')
+                    #
+                    #     else:
+                    #         print(
+                    #             'Available commands:\n\t '
+                    #             '"stop"\n\t '
+                    #             '"mute comments"\n\t '
+                    #             '"unmute comments"\n\t '
+                    #             '"info"\n\t '
+                    #             '"viewers"\n\t '
+                    #             '"comments"\n\t '
+                    #             '"chat"\n\t '
+                    #             '"pin"\n\t '
+                    #             '"unpin"\n\t '
+                    #             '"wave"\n\t')
 
     def get_viewer_list(self):
         if self.send_request("live/{}/get_viewer_list/".format(self.broadcast_id)):
